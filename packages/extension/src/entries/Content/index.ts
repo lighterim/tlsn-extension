@@ -82,43 +82,47 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse: any) => {
       },
       window.location.origin,
     );
+    sendResponse({ success: true });
     return true;
   }
 
   if (request.type === 'GET_PAGE_INFO') {
-    // Example: Get page information
     sendResponse({
       title: document.title,
       url: window.location.href,
       domain: window.location.hostname,
     });
+    return true;
   }
 
   if (request.type === 'RENDER_PLUGIN_UI') {
     renderPluginUI(request.json, request.windowId);
     sendResponse({ success: true });
+    return true;
   }
 
-  // if (request.type === 'SHOW_TLSN_OVERLAY') {
-  //   createTLSNOverlay();
-  //   sendResponse({ success: true });
-  // }
+  // SHOW_TLSN_OVERLAY / UPDATE_TLSN_REQUESTS / HIDE_TLSN_OVERLAY:
+  // Must call sendResponse to avoid "message channel closed" error.
+  // Overlay UI was removed in favor of plugin UI - acknowledge for compatibility.
+  if (request.type === 'SHOW_TLSN_OVERLAY') {
+    sendResponse({ success: true });
+    return true;
+  }
 
-  // if (request.type === 'UPDATE_TLSN_REQUESTS') {
-  //   logger.debug('updateTLSNOverlay', request.requests);
-  //   updateTLSNOverlay(request.requests || []);
-  //   sendResponse({ success: true });
-  // }
+  if (request.type === 'UPDATE_TLSN_REQUESTS') {
+    sendResponse({ success: true });
+    return true;
+  }
 
-  // if (request.type === 'HIDE_TLSN_OVERLAY') {
-  //   const overlay = document.getElementById('tlsn-overlay');
-  //   if (overlay) {
-  //     overlay.remove();
-  //   }
-  //   sendResponse({ success: true });
-  // }
+  if (request.type === 'HIDE_TLSN_OVERLAY') {
+    const overlay = document.getElementById('tlsn-overlay');
+    if (overlay) overlay.remove();
+    sendResponse({ success: true });
+    return true;
+  }
 
-  return true; // Keep the message channel open
+  // Unhandled messages - don't return true to avoid "message channel closed" error
+  return false;
 });
 
 // Send a message to background script when ready

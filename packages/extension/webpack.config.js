@@ -37,6 +37,19 @@ const isDevelopment = process.env.NODE_ENV !== "production";
 
 var options = {
   mode: process.env.NODE_ENV || "development",
+  chromeExtensionBoilerplate: {
+    // All entries run in chrome-extension:// context and cannot connect to
+    // webpack-dev-server WebSocket on localhost. Exclude all from HMR.
+    notHotReload: [
+      "devConsole",
+      "confirmPopup",
+      "options",
+      "background",
+      "contentScript",
+      "content",
+      "offscreen",
+    ],
+  },
   ignoreWarnings: [
     /Circular dependency between chunks with runtime/,
     /ResizeObserver loop completed with undelivered notifications/,

@@ -98,6 +98,18 @@ const DEFAULT_CODE = `// =======================================================
 const config = {
   name: 'X Profile Prover',
   description: 'This plugin will prove your X.com profile.',
+  // Permissions: Define what network requests and URLs the plugin can access
+  requests: [
+    {
+      method: 'GET',
+      host: 'api.x.com',
+      pathname: '/1.1/account/settings.json',
+      verifierUrl: 'http://localhost:7047',
+    },
+  ],
+  urls: [
+    'https://x.com/*',
+  ],
 };
 
 // =============================================================================

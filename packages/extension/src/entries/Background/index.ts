@@ -21,11 +21,13 @@ getStoredLogLevel().then((level) => {
 // Initialize WindowManager for multi-window support
 const windowManager = new WindowManager();
 
-// Create context menu for Developer Console - only for extension icon
-browser.contextMenus.create({
-  id: 'developer-console',
-  title: 'Developer Console',
-  contexts: ['action'],
+// Create context menu for Developer Console - remove first to avoid duplicate id on reload
+browser.contextMenus.removeAll().then(() => {
+  browser.contextMenus.create({
+    id: 'developer-console',
+    title: 'Developer Console',
+    contexts: ['action'],
+  });
 });
 
 // Handle context menu clicks

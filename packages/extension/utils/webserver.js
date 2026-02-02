@@ -28,12 +28,10 @@ var compiler = webpack(config);
 var server = new WebpackDevServer(
   {
     server: 'http',
-    hot: true,
+    hot: false, // Disable HMR - extension runs in chrome-extension:// context, cannot connect to localhost
     liveReload: false,
-    client: {
-      webSocketTransport: 'ws',
-    },
-    webSocketServer: 'ws',
+    client: false, // Prevent WebSocket client injection (causes ws://extension-id/ws errors)
+    webSocketServer: false,
     host: 'localhost',
     port: env.PORT,
     static: {

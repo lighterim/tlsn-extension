@@ -121,8 +121,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse: any) => {
     return true;
   }
 
-  // Unhandled messages - don't return true to avoid "message channel closed" error
-  return false;
+  // Unhandled messages - return void (Chrome API expects true | void | Promise<any>, not false)
 });
 
 // Send a message to background script when ready

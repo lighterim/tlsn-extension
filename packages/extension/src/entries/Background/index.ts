@@ -15,11 +15,13 @@ const chrome = global.chrome as any;
 // Initialize logger with stored log level
 getStoredLogLevel().then((level) => {
   logger.init(level);
+  console.log('[Background] Logger initialized with level:', level);
   logger.info('Background script loaded');
 });
 
 // Initialize WindowManager for multi-window support
 const windowManager = new WindowManager();
+console.log('[Background] WindowManager initialized');
 
 // Create context menu for Developer Console - remove first to avoid duplicate id on reload
 browser.contextMenus.removeAll().then(() => {
@@ -130,16 +132,112 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// Basic message handler
+// Basic message handler - register immediately
+console.log('[Background] Registering onMessage listener...');
 browser.runtime.onMessage.addListener((request, sender, sendResponse: any) => {
-  logger.debug('Message received:', request.type);
+  // Use console.log for critical messages to ensure visibility regardless of log level
+  console.log('[Background] Message received:', request.type, request);
+  logger.info('[Background] Message received:', request.type);
+
+  // Forward plugin UI click events (from content script) to offscreen QuickJS host.
+  // Guard against loops when we re-emit the message from background.
+  if (request.type === 'PLUGIN_UI_CLICK') {
+    console.log(
+      '[Background] PLUGIN_UI_CLICK handler triggered',
+      request,
+    );
+    if (request.__fromBackground) {
+      console.log(
+        '[Background] Ignoring PLUGIN_UI_CLICK (already forwarded)',
+      );
+      logger.debug(
+        '[Background] Ignoring PLUGIN_UI_CLICK (already forwarded)',
+      );
+      return;
+    }
+
+    console.log(
+      `[Background] Received PLUGIN_UI_CLICK: onclick="${request.onclick}", windowId=${request.windowId}`,
+    );
+    logger.info(
+      `[Background] Received PLUGIN_UI_CLICK: onclick="${request.onclick}", windowId=${request.windowId}`,
+    );
+
+    (async () => {
+      try {
+        console.log('[Background] Ensuring offscreen document exists...');
+        logger.debug('[Background] Ensuring offscreen document exists...');
+        // Ensure offscreen document exists so it can receive messages
+        await createOffscreenDocument();
+        console.log('[Background] Offscreen document ready');
+        logger.debug('[Background] Offscreen document ready');
+
+        console.log(
+          `[Background] Forwarding PLUGIN_UI_CLICK to offscreen: onclick="${request.onclick}", windowId=${request.windowId}`,
+        );
+        logger.info(
+          `[Background] Forwarding PLUGIN_UI_CLICK to offscreen: onclick="${request.onclick}"`,
+        );
+        // Re-emit the same message for listeners in the offscreen document
+        // (plugin-sdk Host listens for PLUGIN_UI_CLICK via the eventEmitter)
+        // Don't await - this is fire-and-forget, plugin-sdk will handle it
+        chrome.runtime
+          .sendMessage({
+            ...request,
+            __fromBackground: true,
+          })
+          .then((response) => {
+            console.log(
+              '[Background] PLUGIN_UI_CLICK forwarded, offscreen response:',
+              response,
+            );
+            logger.debug(
+              '[Background] PLUGIN_UI_CLICK forwarded, offscreen response:',
+              response,
+            );
+          })
+          .catch((error) => {
+            console.error(
+              '[Background] Error forwarding PLUGIN_UI_CLICK:',
+              error,
+            );
+            logger.error(
+              '[Background] Error forwarding PLUGIN_UI_CLICK:',
+              error,
+            );
+          });
+
+        // Respond immediately to content script - don't wait for plugin-sdk
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error(
+          '[Background] Failed to forward PLUGIN_UI_CLICK to offscreen:',
+          error,
+        );
+        logger.error(
+          '[Background] Failed to forward PLUGIN_UI_CLICK to offscreen:',
+          error,
+        );
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    })();
+
+    return true;
+  }
 
   if (request.type === 'CONTENT_SCRIPT_READY') {
     if (!sender.tab?.windowId) {
       return;
     }
-    windowManager.reRenderPluginUI(sender.tab.windowId as number);
-    return true;
+    // Fire and forget - don't wait for response
+    windowManager.reRenderPluginUI(sender.tab.windowId as number).catch((error) => {
+      logger.error('Failed to re-render plugin UI:', error);
+    });
+    // Don't return true - this is fire-and-forget
+    return;
   }
 
   // Example response
@@ -154,8 +252,12 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse: any) => {
       request.json,
       request.windowId,
     );
-    windowManager.showPluginUI(request.windowId, request.json);
-    return true;
+    // Fire and forget - don't wait for response
+    windowManager.showPluginUI(request.windowId, request.json).catch((error) => {
+      logger.error('Failed to show plugin UI:', error);
+    });
+    // Don't return true - this is fire-and-forget
+    return;
   }
 
   // Handle plugin confirmation responses from popup

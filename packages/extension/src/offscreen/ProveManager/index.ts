@@ -63,12 +63,17 @@ export class ProveManager {
     sessionData: Record<string, string> = {},
   ): Promise<string> {
     return new Promise((resolve, reject) => {
+      console.log('[ProveManager] Getting verifier session URL:', verifierUrl);
       logger.debug('[ProveManager] Getting verifier session URL:', verifierUrl);
       const _url = new URL(verifierUrl);
       const protocol = _url.protocol === 'https:' ? 'wss' : 'ws';
       const pathname = _url.pathname;
       const sessionWsUrl = `${protocol}://${_url.host}${pathname === '/' ? '' : pathname}/session`;
 
+      console.log(
+        '[ProveManager] Connecting to session WebSocket:',
+        sessionWsUrl,
+      );
       logger.debug(
         '[ProveManager] Connecting to session WebSocket:',
         sessionWsUrl,
@@ -78,6 +83,7 @@ export class ProveManager {
       this.sessionWebSocket = ws;
 
       ws.onopen = () => {
+        console.log('[ProveManager] Session WebSocket connected to:', sessionWsUrl);
         logger.debug('[ProveManager] Session WebSocket connected');
 
         // Send "register" message immediately on connect
@@ -87,6 +93,7 @@ export class ProveManager {
           maxSentData,
           sessionData,
         };
+        console.log('[ProveManager] Sending register message:', registerMsg);
         logger.debug('[ProveManager] Sending register message:', registerMsg);
         ws.send(JSON.stringify(registerMsg));
       };
@@ -183,6 +190,8 @@ export class ProveManager {
       };
 
       ws.onerror = (error) => {
+        console.error('[ProveManager] WebSocket error:', error);
+        console.error('[ProveManager] WebSocket URL was:', sessionWsUrl);
         logger.error('[ProveManager] WebSocket error:', error);
         reject(new Error('WebSocket connection failed'));
       };

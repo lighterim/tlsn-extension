@@ -53,11 +53,38 @@ function createNode(json: DomJson, windowId: number): HTMLElement | Text {
 
   if (json.options.onclick) {
     node.addEventListener('click', () => {
-      browser.runtime.sendMessage({
-        type: 'PLUGIN_UI_CLICK',
-        onclick: json.options.onclick,
-        windowId,
-      });
+      console.log(
+        `[Content] Button clicked: onclick="${json.options.onclick}", windowId=${windowId}`,
+      );
+      logger.debug(
+        `[Content] Button clicked: onclick="${json.options.onclick}", windowId=${windowId}`,
+      );
+      browser.runtime
+        .sendMessage({
+          type: 'PLUGIN_UI_CLICK',
+          onclick: json.options.onclick,
+          windowId,
+        })
+        .then((response) => {
+          console.log(
+            `[Content] PLUGIN_UI_CLICK response:`,
+            response,
+          );
+          logger.debug(
+            `[Content] PLUGIN_UI_CLICK response:`,
+            response,
+          );
+        })
+        .catch((error) => {
+          console.error(
+            `[Content] Failed to send PLUGIN_UI_CLICK:`,
+            error,
+          );
+          logger.error(
+            `[Content] Failed to send PLUGIN_UI_CLICK:`,
+            error,
+          );
+        });
     });
   }
 

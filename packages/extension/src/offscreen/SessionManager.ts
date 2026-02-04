@@ -33,25 +33,54 @@ export class SessionManager {
           sessionData?: Record<string, string>;
         },
       ) => {
+        console.log('[SessionManager] onProve called:', {
+          url: requestOptions.url,
+          method: requestOptions.method,
+          verifierUrl: proverOptions.verifierUrl,
+        });
+        logger.info('[SessionManager] onProve called:', {
+          url: requestOptions.url,
+          method: requestOptions.method,
+          verifierUrl: proverOptions.verifierUrl,
+        });
+
         let url;
 
         try {
           url = new URL(requestOptions.url);
+          console.log('[SessionManager] URL parsed:', url.hostname);
         } catch (error) {
+          console.error('[SessionManager] Invalid URL:', error);
           throw new Error('Invalid URL');
         }
 
         // Validate permissions before proceeding
-        validateProvePermission(
-          requestOptions,
-          proverOptions,
-          this.currentConfig,
-        );
+        console.log('[SessionManager] Validating permissions...');
+        try {
+          validateProvePermission(
+            requestOptions,
+            proverOptions,
+            this.currentConfig,
+          );
+          console.log('[SessionManager] Permissions validated');
+        } catch (error) {
+          console.error('[SessionManager] Permission validation failed:', error);
+          throw error;
+        }
 
         // Build sessionData with defaults + user-provided data
         const sessionData: Record<string, string> = {
           ...proverOptions.sessionData,
         };
+
+        console.log('[SessionManager] Creating prover...', {
+          hostname: url.hostname,
+          verifierUrl: proverOptions.verifierUrl,
+        });
+        logger.info('[SessionManager] Creating prover:', {
+          hostname: url.hostname,
+          verifierUrl: proverOptions.verifierUrl,
+        });
 
         const proverId = await this.proveManager.createProver(
           url.hostname,
@@ -60,6 +89,7 @@ export class SessionManager {
           proverOptions.maxSentData,
           sessionData,
         );
+        console.log('[SessionManager] Prover created:', proverId);
 
         const prover = await this.proveManager.getProver(proverId);
 
@@ -180,6 +210,9 @@ export class SessionManager {
       throw new Error('Chrome runtime not available');
     }
 
+    logger.info('[SessionManager] Starting plugin execution...');
+    console.log('[SessionManager] Starting plugin execution...');
+
     // Extract and store plugin config before execution for permission validation
     this.currentConfig = await this.extractConfig(code);
     logger.debug(
@@ -187,15 +220,28 @@ export class SessionManager {
       this.currentConfig,
     );
 
+    logger.info(
+      '[SessionManager] Creating eventEmitter for plugin-sdk...',
+    );
+    console.log('[SessionManager] Creating eventEmitter for plugin-sdk...');
+
     return this.host.executePlugin(code, {
       eventEmitter: {
         addListener: (listener: (message: any) => void) => {
+          console.log(
+            '[SessionManager] eventEmitter.addListener called, registering listener for plugin-sdk',
+          );
+          logger.debug(
+            '[SessionManager] Registering eventEmitter listener',
+          );
           chromeRuntime.onMessage.addListener(listener);
         },
         removeListener: (listener: (message: any) => void) => {
+          console.log('[SessionManager] eventEmitter.removeListener called');
           chromeRuntime.onMessage.removeListener(listener);
         },
         emit: (message: any) => {
+          console.log('[SessionManager] eventEmitter.emit:', message);
           chromeRuntime.sendMessage(message);
         },
       },
